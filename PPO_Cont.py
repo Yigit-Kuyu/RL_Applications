@@ -15,47 +15,53 @@ import os
 
 
 
-LEARNING_RATE_ACTOR = 0.0001
-LEARNING_RATE_CRITIC = 0.0001
-MAX_STEP_EPISODE_LEN = 3200
-TRAINABLE = True
-T_len = 64 # Test len
-EPOCHS = 200
+# About problem:
+# https://www.gymlibrary.dev/environments/classic_control/pendulum/
 
 
-# Actor and Critic networks are the same
-class actor_builder(torch.nn.Module):
+
+
+class actor_builder(torch.nn.Module): # has two outputs, mu and log_sigma
     def __init__(self, innershape, outershape, actor_space):
         super(actor_builder, self).__init__()
         self.input_shape = innershape
         self.output_shape = outershape
         self.action_bound = actor_space[1]
-
+        
+        # Common layer same as critic
         self.common = torch.nn.Sequential(
             torch.nn.Linear(self.input_shape, 64),
             torch.nn.ReLU(inplace=True),
             torch.nn.Linear(64, 128),
             torch.nn.ReLU(inplace=True)
         )
-        self.mu_out = torch.nn.Linear(128, 1)
-        self.mu_tanh = torch.nn.Tanh()
-        self.sigma_out = torch.nn.Linear(128, 1)
-        self.sigma_tanh = torch.nn.Softplus()
+        
+        self.mu_out = torch.nn.Linear(128, 1) # Predict the mean (mu) of the action distribution
+        self.mu_tanh = torch.nn.Tanh() # tanh activation function, bound mu within the range [-1,1] 
+        
+        # The use of the Softplus activation function for log_sigma is related to modeling a Gaussian (normal) distribution. 
+        # In Gaussian distributions, the standard deviation (sigma) must be positive because it determines the spread or dispersion of data. 
+        # The Softplus activation ensures that log_sigma remains positive, which is equivalent to ensuring that sigma is positive. 
+        # This is crucial for representing valid standard deviations in a probability distribution.
+        self.sigma_out = torch.nn.Linear(128, 1) # Predict log standard deviation (log_sigma) of the action distribution
+        self.sigma_tanh = torch.nn.Softplus() # softplus activation function, to ensure predicted standart deviation (sigma) is positive
 
     def forward(self, obs_ac):
         common = self.common(obs_ac)
         mean = self.mu_out(common)
-        mean = self.mu_tanh(mean) * self.action_bound
+        mean = self.mu_tanh(mean) * self.action_bound # to rescale for the valid action range of the envieonment
         log_sigma = self.sigma_out(common)
         log_sigma = self.sigma_tanh(log_sigma)
 
         return mean, log_sigma
 
 
-class critic_builder(torch.nn.Module):
+class critic_builder(torch.nn.Module): # has one ouput: value
     def __init__(self, innershape):
         super(critic_builder, self).__init__()
         self.input_shape = innershape
+        
+        # Common layer same as actor
         self.common = torch.nn.Sequential(
             torch.nn.Linear(self.input_shape, 64),
             torch.nn.ReLU(inplace=True),
@@ -63,7 +69,7 @@ class critic_builder(torch.nn.Module):
             torch.nn.ReLU(inplace=True)
         )
         self.value = torch.nn.Linear(128, 1)
-
+  
     def forward(self, obs_ac):
         out = self.common(obs_ac)
         out = self.value(out)
@@ -76,8 +82,8 @@ class PPO:
         self.input_shape = inputshape
         self.output_shape = outputshape
         self._init(self.input_shape, self.output_shape, self.action_space)
-        self.lr_actor = LEARNING_RATE_ACTOR
-        self.lr_critic = LEARNING_RATE_CRITIC
+        self.lr_actor = 0.0001
+        self.lr_critic = 0.0001
         self.batch_size = 64 # number of samples that are randomly selected from the total amount of stored data
         self.decay_index = 0.95
         # self.sigma = 0.5
@@ -144,9 +150,10 @@ class PPO:
 
     
     # Calculate the advantage value for actor update
+    # Use the advantage function instead of the expected reward because it reduces the variance of the estimation
     def advantage_calcu(self, decay_reward, state_t1,returns,values):   
         ''''
-        # Optional advantage calculation with discount reward
+        # Optional advantage calculation with discounted reward
         state_t1 = torch.Tensor(state_t1)
         critic_value_ = self.v(state_t1)
         d_reward = torch.Tensor(decay_reward)
@@ -155,25 +162,39 @@ class PPO:
         '''
         returns   = torch.cat(returns).detach()
         values    = torch.cat(values).detach()
+        print(f'returns:  {returns.size()[0]} values:  {values.size()[0]} ')
         advantage=returns - values
         return advantage
 
-     
-           
-
+    
+    ## Once a batch of experience has been used to do gradient update, the experience is then discarded
+    ## and then the policy moves on
+    
     # Calculate Q(s, a) and V(s) for critic update
     def critic_update(self, state_t1, d_reward_,returns,values,with_batch,rand_ids):
         if with_batch==True:
-            critic_loss = (returns[rand_ids]- values[rand_ids]).pow(2).mean()
+            returns_batch   = torch.cat(returns).detach().requires_grad_(True)
+            values_batch    = torch.cat(values).detach().requires_grad_(True)
+            
+            #rand_ids = torch.LongTensor(rand_ids)
+            #returns_tensor = torch.cat(returns)  # Convert the list of tensors to a single tensor
+            #values_tensor = torch.cat(values)  
+            #returns_batch = returns_tensor.index_select(0, rand_ids)
+            #values_batch = values_tensor.index_select(0, rand_ids) 
+            
+            #returns_batch = returns[rand_ids]
+            #values_batch = values[rand_ids]
+            
+            critic_loss = (returns_batch- values_batch).pow(2).mean()
             self.history_critic = critic_loss.detach().item()
             self.c_opt.zero_grad()
             critic_loss.backward(retain_graph=True)
+            #critic_loss.backward()
             self.c_opt.step()
             
             
-        else:   # with discount rate 
+        else:   # with discounted reward
             q_value = torch.Tensor(d_reward_).squeeze(-1)
-
             target_value = self.v(state_t1).squeeze(-1)
             critic_loss = self.c_loss(target_value, q_value) # DEGISECEK, gae GELECEK
             self.history_critic = critic_loss.detach().item()
@@ -184,7 +205,6 @@ class PPO:
     
     
     def actor_update(self, state_, action_, advantage,mini_batch_size, with_batch=True):
-        rand_ids=0
         if with_batch==True:
             batch_size = state_.size(0)
             rand_ids = np.random.randint(0, batch_size, mini_batch_size)
@@ -236,7 +256,7 @@ class PPO:
 
             actor_loss.backward(retain_graph=True)
             self.a_opt.step()
-
+            rand_ids=0
             return rand_ids
 
     def update(self, state_all, action_, discount_reward_,returns,values,mini_batch_size):
@@ -247,6 +267,8 @@ class PPO:
         adv = self.advantage_calcu(d_reward, state_,returns,values)
         with_batch=True
         if with_batch:
+            # Each iteration, construct surrogete loss on "max_step_episode_len" timesteps
+            # and optimize it with minibatch SGD (can use ADAM) for K epochs.
             for i in range(self.update_actor_epoch):
                 rand_ids =self.actor_update(state_, act, adv, mini_batch_size,with_batch=with_batch)
                 print(f'epochs: {self.ep}, timestep: {self.t}, actor_loss: {self.history_actor}')
@@ -269,14 +291,16 @@ class PPO:
 
 
 if __name__ == '__main__':
-
+    T_len = 64 # Test len
+    max_step_episode_len=3200
+    epochs=200
+    
     env = gym.make('Pendulum-v0')
     env = env.unwrapped
     # env.seed(1)
-    test_train_flag = TRAINABLE
-
+    
     action_shape = [env.action_space.low.item(), env.action_space.high.item()]
-    state_shape = np.array(env.observation_space.shape)          # [1., 1., 1.]  ~  [-1.,  0.,  0.]
+    state_shape = np.array(env.observation_space.shape)        
 
     ppo = PPO(state_shape.item(), 1, action_shape)
 
@@ -284,39 +308,49 @@ if __name__ == '__main__':
     ep_history = []
     values=[]
     masks=[]
-    for epoch in range(EPOCHS):
+    rewards=[]
+    for epoch in range(epochs):
         obs = env.reset()
         obs = obs.reshape(1, 3)
         ep_rh = 0
         ppo.ep += 1
-        for t in range(MAX_STEP_EPISODE_LEN): # each step generates action, observation and reward
+        
+        
+        # get the reward, value..etc during each time step in the current episode
+        for t in range(max_step_episode_len): # each time step generates action, observation and reward
             env.render()
+            
+            # Policy (action) is samples from gaussion distribution to get continuous output value 
             action, logprob = ppo.get_action(obs)
             state_frame = torch.Tensor(obs)
             #value_target = ppo.v(state_frame).detach().numpy() # numeric
             value_target = ppo.v(state_frame) # tensor
-            # obs_t1  'in critic network cıkıs value'su na ihtiyacım var
             # each state has a list
             obs_t1, reward, done, _ = env.step(action.detach().numpy().reshape(1, 1)) # obs_t1: next state
             obs_t1 = obs_t1.reshape(1, 3)
-            reward = (reward + 16) / 16
+            reward = (reward + 16) / 16 #  scaling the rewards to a range of roughly -1 to 0 (optional)
             ppo.state_store_memory(obs, action.detach().numpy().reshape(1, 1), reward, logprob)
             values.append(value_target)
             masks.append(done)
             obs = obs_t1
             ep_rh += reward
 
-            if (t+1) % T_len == 0 or t == MAX_STEP_EPISODE_LEN - 1:
+            if (t+1) % T_len == 0 or t == max_step_episode_len- 1:
                 s_t, a, rd, _ = zip(*ppo.memory)
                 s_t = np.concatenate(s_t).squeeze()
                 a = np.concatenate(a).squeeze()
                 rd = np.concatenate(rd)
+                
+                if len(values)==128:
+                   print('stop')
 
                 discount_reward = ppo.decayed_reward(obs_t1, rd)  # Value geri donduruyor
                 returns=ppo.compute_gae(obs_t1, values,rd,masks, gamma=0.99, lam=0.95) # Do it
-
+                
                 ppo.update(s_t, a, discount_reward,returns,values,mini_batch_size=5)
                 ppo.memory.clear()
+                values=[]
+                masks=[]
 
             ppo.t += 1
         ep_history.append(ep_rh)
