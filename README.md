@@ -8,4 +8,5 @@
 - [X] Actor-Critic (AC)
 - [ ] Advance Actor-Critic (A2C)
 - [ ] Soft Actor-Critic (SAC)
-- [ ] Twin delayed deep deterministic policy gradient (TD3)
+- [ ] Twin Delayed Deep Deterministic Policy Gradient (TD3)
+- [X] Proximal Policy Optimization (PPO)
