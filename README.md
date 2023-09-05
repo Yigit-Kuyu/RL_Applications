@@ -1,7 +1,7 @@
 # Discrete
 - [ ] Deep Q learning (DQL)
 - [ ] Double Deep Q learning (DDQN)
-- [ ] Actor-Critic (AC)
+- [ ] Stochastic Actor-Critic (SAC)
 - [ ] Soft Actor-Critic (SAC)
 
 # Continuous
