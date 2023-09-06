@@ -18,6 +18,9 @@ import os
 # About problem:
 # https://www.gymlibrary.dev/environments/classic_control/pendulum/
 
+ # About the algorithm:
+ # https://www.youtube.com/watch?v=WxQfQW48A4A&ab_channel=SkowstertheGeek
+
 
 
 
