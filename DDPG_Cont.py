@@ -19,6 +19,8 @@ import numpy as np
 # About problem:
 # https://www.gymlibrary.dev/environments/classic_control/pendulum/
 
+
+
 class Critic(nn.Module):
 
     def __init__(self, obs_dim, action_dim):
@@ -62,7 +64,6 @@ class Actor(nn.Module):
 
 
 # Ornstein-Ulhenbeck Noise
-# Taken from #https://github.com/vitchyr/rlkit/blob/master/rlkit/exploration_strategies/ou_strategy.py
 class OUNoise(object):
     def __init__(self, action_space, mu=0.0, theta=0.15, max_sigma=0.3, min_sigma=0.3, decay_period=100000):
         self.mu           = mu
@@ -185,12 +186,12 @@ class DDPGAgent:
         next_Q = self.critic_target.forward(next_state_batch, next_actions.detach())
         
         
-        ## Calculation of expected Q (y value)
+        # Calculation of expected Q (y value)
         reward_batch = torch.FloatTensor(reward_batch).to(self.device)
         masks = torch.FloatTensor(masks).to(self.device)
         expected_Q = reward_batch + self.gamma * next_Q # self.gamma-->discount factor
         
-        # Main loss (mean-squared Bellman error-MSBA, Temporal difference)
+        # Main loss or critic loss (mean-squared Bellman error-MSBA, Temporal difference)
         q_loss = F.mse_loss(curr_Q, expected_Q.detach())
 
         # Update the critic network by minimizing loss
@@ -200,7 +201,7 @@ class DDPGAgent:
 
         
         
-        # Calculate actor policy (positive for maximizing Q, negative for minimizing loss)
+        # Calculate actor policy or actor loss (positive for maximizing Q, negative for minimizing loss)
         # In the below code, the goal is to minimize a loss function that measures the difference between predicted output and true label. 
         policy_loss = -self.critic.forward(state_batch, self.actor.forward(state_batch)).mean() # mean of the Q values for all state-action pairs
         
@@ -210,10 +211,11 @@ class DDPGAgent:
         policy_loss.backward() # backpropagation to compute gradients of "policy_loss"
         self.actor_optimizer.step() # update actor network parameters to based on computed gradients
 
-        # soft update target networks 
+        # soft update target networks using Polyak averaging 
+        # For actor target
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
-       
+        # For critic target
         for target_param, param in zip(self.critic_target.parameters(), self.critic.parameters()):
             target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
 
