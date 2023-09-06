@@ -5,7 +5,8 @@
 - [ ] Soft Actor-Critic (SAC)
 
 # Continuous
-- [X] Actor-Critic (AC)
+- [X] Stochastic Actor-Critic (SAC)
+- [X] Deep Deterministic Policy Gradient (DDPG) 
 - [ ] Advance Actor-Critic (A2C)
 - [ ] Soft Actor-Critic (SAC)
 - [ ] Twin Delayed Deep Deterministic Policy Gradient (TD3)
