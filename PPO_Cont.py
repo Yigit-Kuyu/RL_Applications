@@ -18,9 +18,6 @@ import os
 # About problem:
 # https://www.gymlibrary.dev/environments/classic_control/pendulum/
 
- # About the algorithm:
- # https://www.youtube.com/watch?v=WxQfQW48A4A&ab_channel=SkowstertheGeek
-
 
 
 
@@ -49,6 +46,8 @@ class actor_builder(torch.nn.Module): # has two outputs, mu and log_sigma
         self.sigma_out = torch.nn.Linear(128, 1) # Predict log standard deviation (log_sigma) of the action distribution
         self.sigma_tanh = torch.nn.Softplus() # softplus activation function, to ensure predicted standart deviation (sigma) is positive
 
+    
+    #  Since PPO uses stochastic policy, compute the mean and variance of each variable for action selection
     def forward(self, obs_ac):
         common = self.common(obs_ac)
         mean = self.mu_out(common)
@@ -222,10 +221,14 @@ class PPO:
             pi_dist = Normal(pi_mean, pi_sigma)
             pi_dist_old = Normal(pi_mean_old, pi_sigma_old)
 
-            logprob_new = pi_dist.log_prob(action_.reshape(-1, 1))
-            logprob_old = pi_dist_old.log_prob(action_.reshape(-1, 1))
+            # log likelihoods of particular actions
+            logprob_new = pi_dist.log_prob(action_.reshape(-1, 1)) # new policy action probability
+            logprob_old = pi_dist_old.log_prob(action_.reshape(-1, 1)) # old policy action probability
 
+            # To ensure that the policy update is not too drastic from the old policy to the new policy. 
+            # We want to prevent policy updates that are too aggressive, which could lead to instability in training. I
             ratio = torch.exp(logprob_new - logprob_old)
+            
             surrogate1 = ratio * advantage
             surrogate2 = torch.clamp(ratio, 1-self.epilson, 1+self.epilson) * advantage
 
