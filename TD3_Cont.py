@@ -27,6 +27,7 @@ class ReplayBuffer():
     def __len__(self):
         return len(self.memory)
 
+# deterministic policy
 class ActorNet(nn.Module):
     def __init__(self, state_num, action_num, min_action, max_action):
         super(ActorNet, self).__init__()
@@ -42,7 +43,7 @@ class ActorNet(nn.Module):
         x = F.relu(self.input(x))
         x = F.relu(self.fc(x))
         x = F.sigmoid(self.output(x))
-        action = (self.max_action - self.min_action) * x + self.min_action
+        action = (self.max_action - self.min_action) * x + self.min_action # scale into range
         
         return action
     

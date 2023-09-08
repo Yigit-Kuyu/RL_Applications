@@ -127,7 +127,7 @@ class BasicBuffer:
 
 
 
-
+# deterministic policy
 class DDPGAgent:
     
     def __init__(self, env, gamma, tau, buffer_maxlen, critic_learning_rate, actor_learning_rate):
