@@ -20,7 +20,7 @@ import os
 
 
 
-
+# stochastic policy
 class actor_builder(torch.nn.Module): # has two outputs, mu and log_sigma
     def __init__(self, innershape, outershape, actor_space):
         super(actor_builder, self).__init__()
@@ -36,6 +36,7 @@ class actor_builder(torch.nn.Module): # has two outputs, mu and log_sigma
             torch.nn.ReLU(inplace=True)
         )
         
+        # Problem dim=1
         self.mu_out = torch.nn.Linear(128, 1) # Predict the mean (mu) of the action distribution
         self.mu_tanh = torch.nn.Tanh() # tanh activation function, bound mu within the range [-1,1] 
         
