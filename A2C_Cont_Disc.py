@@ -17,8 +17,8 @@ class Memory:
         self.state_values = []
         self.entropy = []
 
-    def calculate_data(self, gamma):
-        # compute the discounted rewards
+    # compute the discounted rewards
+    def calculate_data_dr(self, gamma):
         disc_rewards = []
         R = 0
         # Update the value of the last state by using the last reward,
@@ -36,6 +36,21 @@ class Memory:
 
         return torch.stack(self.action_prob), torch.stack(self.state_values), disc_rewards.to(device), torch.stack(self.entropy)
 
+    
+    ## http://incompleteideas.net/book/RLbook2020.pdf , section 10.3, pp. 249
+    # compute the average rewards
+    def calculate_data_ar(self):
+        
+        average_reward=sum(self.rewards) / len(self.rewards)
+        advantages = [r - average_reward for r in self.rewards]
+        advantages=torch.Tensor(advantages)
+        return torch.stack(self.action_prob), torch.stack(self.state_values), advantages.to(device), torch.stack(self.entropy)
+
+
+        
+    
+    
+    
     def update(self, reward, entropy, log_prob, state_value):
         self.entropy.append(entropy)
         self.action_prob.append(log_prob)
@@ -133,20 +148,29 @@ class A2C:
     # Takes a Memory object (presumably containing experiences), a discount factor (gamma), and an epsilon value (eps) as inputs.
     # It computes the loss and performs one step of optimization on the actor-critic model using the advantage actor-critic algorithm.
     def train(self,memory, gamma, eps):
-        action_prob, values, disc_rewards, entropy = memory.calculate_data(gamma)
-        # Calculate advantage function as value function (values) and the return of the current N-step trajectoy (disc_reward)
-        advantage = disc_rewards.detach() - values
+        dis_count_reward_option=0
+        if dis_count_reward_option==1: # For discounted reward
+            action_prob, values, disc_rewards, entropy = memory.calculate_data_dr(gamma)
+            # Calculate advantage function as value function (values) and the return of the current N-step trajectoy (disc_reward)
+            advantage = disc_rewards.detach() - values
+        else: # For average reward
+            action_prob, values, advantage, entropy =memory.calculate_data_ar()
 
-        # Actor loss
+        # Actor loss (first aim to maximize discounted reward (also advantage due to close relationship with discounted reward) so minimize negative one)
+        # The policy loss can vary greatly from episode to episode. If you use gradient descent to update the network parameters, 
+        # each sample's loss would contribute to the parameter updates, but with potentially different scales.
+        # Using .mean() scales the loss so that it represents the average loss over the entire batch.  This is a kind of normalization.
         policy_loss = (-action_prob*advantage.detach()).mean() - eps*entropy.mean() # Add entropy for exploration
-        # Critic loss
-        value_loss = 0.5 * advantage.pow(2).mean()
-        ## Total loss
+        # Critic-loss
+        value_loss = 0.5 * advantage.pow(2).mean() #MSE
+        ## Total-loss
         loss = policy_loss + value_loss 
 
         self.optimize.zero_grad()
         loss.backward()
         self.optimize.step()
+
+    
         
 
 # It processes the state through the model to obtain an action.
@@ -192,7 +216,7 @@ def evaluate(actor_critic, env, repeats, mode):
     return perform/repeats
 
 
-def main(gamma=0.99, lr=5e-3, num_episodes=400, eps=0.001, seed=42, lr_step=100, lr_gamma=0.9, measure_step=100, 
+def main(gamma=0.99, lr=5e-3, num_episodes=400, eps=0.001, seed=42, lr_step=100, lr_gamma=0.9, measure_step=10, 
          measure_repeats=100, horizon=200, hidden_dim=64, env_name='Pendulum-v0', render=True): # 'CartPole-v1' for discrete
     
     env = gym.make(env_name)
