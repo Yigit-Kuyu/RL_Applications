@@ -42,7 +42,8 @@ class Critic(nn.Module):
         qval = self.linear4(xa)
 
         return qval
-
+    
+# Deterministic policy
 class Actor(nn.Module):
 
     def __init__(self, obs_dim, action_dim):
@@ -127,7 +128,7 @@ class BasicBuffer:
 
 
 
-# deterministic policy
+
 class DDPGAgent:
     
     def __init__(self, env, gamma, tau, buffer_maxlen, critic_learning_rate, actor_learning_rate):
@@ -191,7 +192,7 @@ class DDPGAgent:
         masks = torch.FloatTensor(masks).to(self.device)
         expected_Q = reward_batch + self.gamma * next_Q # self.gamma-->discount factor
         
-        # Main loss or critic loss (mean-squared Bellman error-MSBA, Temporal difference)
+        # Main loss or critic loss (mean-squared Bellman error-MSBE, Temporal difference)
         q_loss = F.mse_loss(curr_Q, expected_Q.detach())
 
         # Update the critic network by minimizing loss

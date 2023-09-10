@@ -27,7 +27,7 @@ class ReplayBuffer():
     def __len__(self):
         return len(self.memory)
 
-# deterministic policy
+# Deterministic policy
 class ActorNet(nn.Module):
     def __init__(self, state_num, action_num, min_action, max_action):
         super(ActorNet, self).__init__()
@@ -43,7 +43,7 @@ class ActorNet(nn.Module):
         x = F.relu(self.input(x))
         x = F.relu(self.fc(x))
         x = F.sigmoid(self.output(x))
-        action = (self.max_action - self.min_action) * x + self.min_action # scale into range
+        action = (self.max_action - self.min_action) * x + self.min_action
         
         return action
     
@@ -191,6 +191,7 @@ class TD3():
         
         # Calculate the critic loss which is sum of mean squared error 
         # between Q value of target Critic and the the two Critics. 
+        # Main loss or critic loss (mean-squared Bellman error-MSBE, Temporal difference)
         critic_loss = F.mse_loss(q1_current, q_expected.detach()) + F.mse_loss(q2_current, q_expected.detach())
         
         ## Update the critic
