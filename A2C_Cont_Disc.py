@@ -42,10 +42,12 @@ class Memory:
     def calculate_data_ar(self):
         
         average_reward=sum(self.rewards) / len(self.rewards)
-        advantages = [r - average_reward for r in self.rewards]
-        advantages=torch.Tensor(advantages)
-        return torch.stack(self.action_prob), torch.stack(self.state_values), advantages.to(device), torch.stack(self.entropy)
-  
+
+        average_reward_value_function = [r - average_reward for r in self.rewards]
+        average_reward_value_function=torch.Tensor(average_reward_value_function)
+        return torch.stack(self.action_prob), torch.stack(self.state_values), average_reward_value_function.to(device), torch.stack(self.entropy)
+
+
     
     def update(self, reward, entropy, log_prob, state_value):
         self.entropy.append(entropy)
@@ -81,6 +83,7 @@ class ActorCriticContinuous(nn.Module):
         # actor head: output mean and std
         self.actor_head_mean = nn.Linear(int(hidden_dim/2), action_dim)
         self.actor_head_sigma = nn.Linear(int(hidden_dim / 2), action_dim)
+
     
     # The critic network in A2C is responsible for estimating the state value function, not the action-value function (Q-value).
     # This is because the A2C algorithm uses the advantage function to update the policy and the value function.
@@ -89,7 +92,7 @@ class ActorCriticContinuous(nn.Module):
         x = F.leaky_relu(self.fc_2_critic(x))
 
         # how good is the current state?
-        state_value = self.critic_head(x)
+        state_value = self.critic_head(x) # state-value
 
         
         return state_value
@@ -132,8 +135,6 @@ class ActorCriticDiscrete(nn.Module):
 
 
 
-
-
 # No replay buffer
 class A2C:
 
@@ -152,8 +153,8 @@ class A2C:
             # Calculate advantage function as value function (values) and the return of the current N-step trajectoy (disc_reward)
             advantage = disc_rewards.detach() - values
         else: # For average reward
-            action_prob, values, advantage, entropy =memory.calculate_data_ar()
-
+            action_prob, values, average_reward_value, entropy =memory.calculate_data_ar() 
+            advantage = average_reward_value.detach() - values
         # Actor loss (first aim to maximize discounted reward (also advantage due to close relationship with discounted reward) so minimize negative one)
         # The policy loss can vary greatly from episode to episode. If you use gradient descent to update the network parameters, 
         # each sample's loss would contribute to the parameter updates, but with potentially different scales.
@@ -177,7 +178,7 @@ class A2C:
 def select_action(model, state, mode):
     state = torch.Tensor(state).to(device)
     if mode == "continuous":
-        q_value=model.forward_critic(state)
+        V_value=model.forward_critic(state)
         mean, sigma = model.forward_actor(state)
         s = torch.distributions.MultivariateNormal(mean, torch.diag(sigma))
     else:
@@ -186,8 +187,9 @@ def select_action(model, state, mode):
 
     action = s.sample()
     entropy = s.entropy()
+    log_prob_action=s.log_prob(action) #  the log probability of the sampled action 
 
-    return action.cpu().numpy(), entropy, s.log_prob(action), q_value
+    return action.cpu().numpy(), entropy,log_prob_action, V_value
 
 # This function evaluates the performance of the actor-critic model in the environment by running repeats number of episodes.
 # It returns the average performance over these episodes.
