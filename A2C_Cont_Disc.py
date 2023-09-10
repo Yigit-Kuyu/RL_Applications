@@ -45,11 +45,7 @@ class Memory:
         advantages = [r - average_reward for r in self.rewards]
         advantages=torch.Tensor(advantages)
         return torch.stack(self.action_prob), torch.stack(self.state_values), advantages.to(device), torch.stack(self.entropy)
-
-
-        
-    
-    
+  
     
     def update(self, reward, entropy, log_prob, state_value):
         self.entropy.append(entropy)
@@ -85,7 +81,9 @@ class ActorCriticContinuous(nn.Module):
         # actor head: output mean and std
         self.actor_head_mean = nn.Linear(int(hidden_dim/2), action_dim)
         self.actor_head_sigma = nn.Linear(int(hidden_dim / 2), action_dim)
-
+    
+    # The critic network in A2C is responsible for estimating the state value function, not the action-value function (Q-value).
+    # This is because the A2C algorithm uses the advantage function to update the policy and the value function.
     def forward_critic(self, inp):
         x = F.leaky_relu(self.fc_1_critic(inp))
         x = F.leaky_relu(self.fc_2_critic(x))
