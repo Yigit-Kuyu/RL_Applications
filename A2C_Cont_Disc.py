@@ -153,7 +153,7 @@ class A2C:
             # Calculate advantage function as value function (values) and the return of the current N-step trajectoy (disc_reward)
             advantage = disc_rewards.detach() - values
         else: # For average reward
-            action_prob, values, average_reward_value, entropy =memory.calculate_data_ar() # ADVANTAGE CALCULATION YANLI
+            action_prob, values, average_reward_value, entropy =memory.calculate_data_ar() 
             advantage = average_reward_value.detach() - values
         # Actor loss (first aim to maximize discounted reward (also advantage due to close relationship with discounted reward) so minimize negative one)
         # The policy loss can vary greatly from episode to episode. If you use gradient descent to update the network parameters, 
