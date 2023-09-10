@@ -1,11 +1,14 @@
 # Discrete
 - [ ] Deep Q learning (DQL)
 - [ ] Double Deep Q learning (DDQN)
-- [ ] Actor-Critic (AC)
+- [ ] Stochastic Actor-Critic (SAC)
 - [ ] Soft Actor-Critic (SAC)
+- [X] Advantage Actor-Critic (A2C)
 
 # Continuous
-- [X] Actor-Critic (AC)
-- [ ] Advance Actor-Critic (A2C)
+- [X] Stochastic Actor-Critic (SAC)
+- [X] Deep Deterministic Policy Gradient (DDPG) 
+- [X] Advantage Actor-Critic (A2C)
 - [ ] Soft Actor-Critic (SAC)
-- [ ] Twin delayed deep deterministic policy gradient (TD3)
+- [X] Twin Delayed Deep Deterministic Policy Gradient (TD3)
+- [X] Proximal Policy Optimization (PPO)

@@ -42,9 +42,11 @@ class Memory:
     def calculate_data_ar(self):
         
         average_reward=sum(self.rewards) / len(self.rewards)
+
         average_reward_value_function = [r - average_reward for r in self.rewards]
         average_reward_value_function=torch.Tensor(average_reward_value_function)
         return torch.stack(self.action_prob), torch.stack(self.state_values), average_reward_value_function.to(device), torch.stack(self.entropy)
+
 
     
     def update(self, reward, entropy, log_prob, state_value):
@@ -130,8 +132,6 @@ class ActorCriticDiscrete(nn.Module):
         action_prob = F.softmax(self.actor_head(x), dim=-1)
 
         return action_prob, state_value
-
-
 
 
 
