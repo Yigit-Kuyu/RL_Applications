@@ -23,4 +23,4 @@ This repository encompasses implementations of RL algorithms tailored for both c
 | Action  |  Dt | Dt  | St  | St  | Dt  |
 | Replay Buffer  | &check;  | &check; |  &#9746;  | &check;   | &check;  |
 | Policy  | Off  | Off  | On  | Off  | Off  |
-| Advantage Func.  |   &#9746; |  &#9746;  | &check;   | entropy-based  |  &#9746;   |
+| Advantage Func.  |   &#9746; |  &#9746;  | &check;   | entropy-based  |  &check;   |
