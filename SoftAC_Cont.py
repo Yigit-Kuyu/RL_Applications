@@ -240,7 +240,7 @@ class Sac_agent:
             critic_1, critic_2 = self.critic(state, action)
             critic_loss1 = 0.5*F.mse_loss(critic_1, Q_target_main) # Eq. 7 of the original paper
             critic_loss2 = 0.5* F.mse_loss(critic_2, Q_target_main) # Eq. 7 of the original paper
-            total_critic_loss=critic_loss1+ critic_loss1  
+            total_critic_loss=critic_loss1+ critic_loss2 
             # Gradient steps
             self.critic_optimizer.zero_grad()
             total_critic_loss.backward() 
