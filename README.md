@@ -22,7 +22,7 @@ This repository encompasses implementations of RL algorithms tailored for both c
 | Topology  | AV  | AV  | SV  | SV+AV  | AV  |
 | Action  |  Dt | Dt  | St  | St  | Dt  |
 | Replay Buffer  | &check;  | &check; |  &#9746;  | &check;   | &check;  |
-| Policy  | Off  | Off  | On  | Off  | Off  |
+| Policy  | Off  | Off  | On  | Off  | On  |
 | Advantage Func.  |   &#9746; |  &#9746;  | &check;   | entropy-based  |  &check;   |
 
 
